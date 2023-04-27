@@ -60,7 +60,34 @@ animate(p_c, duration = 15, fps = 20, width = 800, height = 650, renderer = gifs
 anim_save('globalmentalhealth5.gif')
 
 
-# Create top few countries to appear as text (to avoid country names being cluttered)
+library(readr)
+library(gganimate)
+library(ggplot2)
+library(countrycode)
+library(scales)
+library(gifski)
+library(ggdark)
+library(viridis)
+library(hrbrthemes)
+library(dplyr)
+library(ggrepel)  
+library(gapminder)
+library(shiny)
+
+
+# Load Data
+glob <- read.csv("Mental health Depression disorder Data.csv")
+# Create continent variable
+glob$continent <- countrycode(sourcevar = glob[, "Entity"],
+                              origin = "country.name",
+                              destination = "continent")
+# Omit those that contain NA values
+glob <- na.omit(glob)
+# Turn year into integer
+glob$Year <- as.integer(glob$Year)
+
+
+# Shiny App
 
 ui <- fluidPage(sidebarLayout(
   sidebarPanel(
@@ -74,7 +101,7 @@ server <- function(input, output) {
     outfile <- tempfile(fileext='.gif')
     # now make the animation
     if (input$Region=="ALL") {
-      cut_d <- top_n(glob, n = 400, Depression....)
+      cut_d <- top_n(glob, n = 300, Depression....)
       cut_a <- top_n(glob, n = 300, Anxiety.disorders....)
       topcount <- c(unique(cut_d$Entity),
                     unique(cut_a$Entity))
@@ -91,8 +118,8 @@ server <- function(input, output) {
         transition_time(Year) + ease_aes("linear")}
     else {
       d <- subset(glob, continent == input$Region)
-      cut_d <- top_n(d, n = 400, Depression....)
-      cut_a <- top_n(d, n = 300, Anxiety.disorders....)
+      cut_d <- top_n(d, n = 100, Depression....)
+      cut_a <- top_n(d, n = 100, Anxiety.disorders....)
       topcount <- c(unique(cut_d$Entity),
                     unique(cut_a$Entity))
       topcount_cut <- glob %>% filter(Entity %in% topcount)
@@ -116,3 +143,6 @@ server <- function(input, output) {
          # alt = "This is alternate text"
     )}, deleteFile = TRUE)}
 shinyApp(ui, server)
+
+
+
