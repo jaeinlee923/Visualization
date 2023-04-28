@@ -8,10 +8,10 @@ library(ggdark)
 library(viridis)
 library(hrbrthemes)
 library(dplyr)
-library(ggrepel) 
 library(ggrepel)  
 library(gapminder)
 library(shiny)
+library(ggcorrplot)
 
 glob <- read.csv("Mental health Depression disorder Data.csv")
 glob$continent <- countrycode(sourcevar = glob[, "Entity"],
@@ -19,8 +19,24 @@ glob$continent <- countrycode(sourcevar = glob[, "Entity"],
                             destination = "continent")
 glob <- na.omit(glob)
 glob$Year <- as.integer(glob$Year )
+
+
+names(glob) <- c("index", "Entity", "Code", "Year", "Schizophrenia", "Bipolar", "Eating_disorder", "Anxiety", "Drug_use_disorder", "Depression", "Alcohol_use_disorder", "continent")
+
+glob$Schizophrenia <- as.numeric(glob$Schizophrenia)
+glob$Bipolar <- as.numeric(glob$Bipolar)
+glob$Eating_disorder <- as.numeric(glob$Eating_disorder)
+
+globcorr <- glob[,c("Schizophrenia", "Bipolar", "Eating_disorder", "Anxiety", "Drug_use_disorder", "Depression", "Alcohol_use_disorder")]
+
+
+corr <- round(cor(globcorr), 1)
+
+ggcorrplot(corr, hc.order = TRUE,
+           lab = TRUE)
+
 # Animated graph
-p <- ggplot(glob, aes(x = Anxiety.disorders...., y = Depression...., size = Depression...., color = Entity, label = Entity))  +
+p <- ggplot(glob, aes(x = Anxiety, y = Depression, size = Depression, color = Entity, label = Entity))  +
   guides(color = "none", label = "none") +
   scale_x_continuous(labels = unit_format(unit = "%")) +
   scale_y_continuous(labels = unit_format(unit = "%")) +
@@ -33,18 +49,18 @@ p <- ggplot(glob, aes(x = Anxiety.disorders...., y = Depression...., size = Depr
   labs(title = "Year: {frame_time}",x = "\nAxiety Rates", y = "Depression Rates\n", size = "Depression", color = "Country") +
   transition_time(Year) + ease_aes("linear")
 
-cut_d <- top_n(glob, n = 400, Depression....)
-cut_a <- top_n(glob, n = 300, Anxiety.disorders....)
+cut_d <- top_n(glob, n = 400, Depression)
+cut_a <- top_n(glob, n = 300, Anxiety)
 topcount <- c(unique(cut_d$Entity),
               unique(cut_a$Entity))
 topcount_cut <- glob %>% filter(Entity %in% topcount)
   
-p_c <- ggplot(glob, aes(x = Anxiety.disorders...., y = Depression...., color = continent))  +
+p_c <- ggplot(glob, aes(x = Anxiety, y = Depression, color = continent))  +
   scale_x_continuous(labels = unit_format(unit = "%")) +
   scale_y_continuous(labels = unit_format(unit = "%")) +
   theme_ipsum() +
   scale_size(range = c(1, 30)) +
-  geom_point(alpha=0.5, aes(size = Depression...., color = continent)) +
+  geom_point(alpha=0.5, aes(size = Depression, color = continent)) +
   geom_text(data = topcount_cut, alpha=0.7, color="black", aes(label = topcount_cut$Entity)) +
   scale_color_viridis_d() +
   # Animation
@@ -59,79 +75,52 @@ anim_save('globalmentalhealth3.gif')
 animate(p_c, duration = 15, fps = 20, width = 800, height = 650, renderer = gifski_renderer())
 anim_save('globalmentalhealth5.gif')
 
-
-library(readr)
-library(gganimate)
-library(ggplot2)
-library(countrycode)
-library(scales)
-library(gifski)
-library(ggdark)
-library(viridis)
-library(hrbrthemes)
-library(dplyr)
-library(ggrepel)  
-library(gapminder)
-library(shiny)
-
-
-# Load Data
-glob <- read.csv("Mental health Depression disorder Data.csv")
-# Create continent variable
-glob$continent <- countrycode(sourcevar = glob[, "Entity"],
-                              origin = "country.name",
-                              destination = "continent")
-# Omit those that contain NA values
-glob <- na.omit(glob)
-# Turn year into integer
-glob$Year <- as.integer(glob$Year)
-
-
 # Shiny App
+
+glo <- read.csv("glob.csv")
 
 ui <- fluidPage(sidebarLayout(
   sidebarPanel(
-    selectInput("Region", "Please Select Region", choices=c("Asia", "Africa","Americas","Europe","Oceania","ALL"))
+    selectInput(inputId = "Region", label = "Please Select Region", choices=c("Asia",  "Africa", "Americas", "Europe", "Oceania", "ALL")),
+    selectInput(inputId = "Size", label = "Please Select Size", choices=c("Schizophrenia", "Bipolar", "Eating_disorder", "Drug_use_disorder", "Alcohol_use_disorder")),
+    selectInput(inputId = "Color", label = "Please Select Color", choices=c("Schizophrenia", "Bipolar", "Eating_disorder", "Drug_use_disorder", "Alcohol_use_disorder"))
   ),
   mainPanel(imageOutput("plot1"))))
+
 server <- function(input, output) {
   output$plot1 <- renderImage({
     # A temp file to save the output.
     # This file will be removed later by renderImage
     outfile <- tempfile(fileext='.gif')
     # now make the animation
-    if (input$Region=="ALL") {
-      cut_d <- top_n(glob, n = 300, Depression....)
-      cut_a <- top_n(glob, n = 300, Anxiety.disorders....)
+    if (input$Region == "ALL") {
+      cut_d <- top_n(glo, n = 300, Depression)
+      cut_a <- top_n(glo, n = 300, Anxiety)
       topcount <- c(unique(cut_d$Entity),
                     unique(cut_a$Entity))
-      topcount_cut <- glob %>% filter(Entity %in% topcount)
-      p <- ggplot(glob, aes(x = Anxiety.disorders...., y = Depression...., color = Alcohol.use.disorders....))  +
-        scale_x_continuous(labels = unit_format(unit = "%")) +
-        scale_y_continuous(labels = unit_format(unit = "%")) +
+      topcount_cut <- glo %>% filter(Entity %in% topcount)
+      p <- ggplot(glo, aes(x = Anxiety, y = Depression)) +
+        geom_point(alpha=0.5, aes_string(size = input$Size, color = input$Color)) + 
+        scale_color_viridis() +
         scale_size(range = c(1, 30)) +
-        geom_point(alpha=0.5, aes(size = Drug.use.disorders...., color = Alcohol.use.disorders....)) +
-        geom_text(data = topcount_cut, alpha=0.7, color="black", aes(label = topcount_cut$Entity)) +
-        scale_color_viridis() + theme_minimal() +
+        geom_text(data = topcount_cut, alpha=0.7, color="black", aes(label = Entity)) + theme_minimal() +
         # Animation
-        labs(title = "Year: {frame_time}", x = "\nAxiety Rates", y = "Depression Rates\n", size = "Drug Use\nDisorders", color = "Alchohol Related\nDisorders") +
+        labs(title = "Year: {frame_time}", x = "\nAxiety Rates", y = "Depression Rates\n", size = paste0(input$Size), color = paste0(input$Color)) +
         transition_time(Year) + ease_aes("linear")}
     else {
-      d <- subset(glob, continent == input$Region)
-      cut_d <- top_n(d, n = 100, Depression....)
-      cut_a <- top_n(d, n = 100, Anxiety.disorders....)
+      d <- subset(glo, continent == input$Region)
+      cut_d <- top_n(d, n = 100, Depression)
+      cut_a <- top_n(d, n = 100, Anxiety)
       topcount <- c(unique(cut_d$Entity),
                     unique(cut_a$Entity))
-      topcount_cut <- glob %>% filter(Entity %in% topcount)
-      p <- ggplot(data = d, aes(x = Anxiety.disorders...., y = Depression...., color = Alcohol.use.disorders....))  +
-        scale_x_continuous(labels = unit_format(unit = "%")) +
-        scale_y_continuous(labels = unit_format(unit = "%")) +
+      topcount_cut <- glo %>% filter(Entity %in% topcount)
+      p <- ggplot(data = d, aes(x = Anxiety, y = Depression)) +
+        geom_point(alpha=0.5, aes_string(size = input$Size, color = input$Color)) +
+        scale_color_viridis() +
         scale_size(range = c(1, 30)) +
-        geom_point(alpha=0.5, aes(size = Drug.use.disorders...., color = Alcohol.use.disorders....)) +
-        geom_text(data = topcount_cut, alpha=0.7, color="black", aes(label = Entity)) +
-        scale_color_viridis() + theme_minimal() +
+        geom_text(data = topcount_cut, alpha=0.7, color="black", aes(label = Entity)) + theme_minimal() +
         # Animation
-        labs(title = "Year: {frame_time}", subtitle = paste0(input$Region), x = "\nAxiety Rates", y = "Depression Rates\n", size = "Drug Use\nDisorders", color = "Alchohol Related\nDisorders") +
+        labs(title = "Year: {frame_time}", subtitle = paste0(input$Region), x = "\nAxiety Rates", y = "Depression Rates\n", size = paste0(input$Size), color = paste0(input$Color)) +
         transition_time(Year) + ease_aes("linear")
     }
     
@@ -143,6 +132,4 @@ server <- function(input, output) {
          # alt = "This is alternate text"
     )}, deleteFile = TRUE)}
 shinyApp(ui, server)
-
-
 
